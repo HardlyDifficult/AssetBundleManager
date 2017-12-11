@@ -309,12 +309,12 @@ namespace AssetBundles
 	
 			WWW download = null;
 			string url = m_BaseDownloadingURL + assetBundleName;
-		
-			// For manifest assetbundle, always download it as we don't have hash for it.
-			if (isLoadingAssetBundleManifest)
 				download = new WWW(url);
-			else
-				download = WWW.LoadFromCacheOrDownload(url, m_AssetBundleManifest.GetAssetBundleHash(assetBundleName), 0); 
+		
+			//// For manifest assetbundle, always download it as we don't have hash for it.
+			//if (isLoadingAssetBundleManifest)
+			//else
+			//	download = WWW.LoadFromCacheOrDownload(url, m_AssetBundleManifest.GetAssetBundleHash(assetBundleName), 0); 
 	
 			m_DownloadingWWWs.Add(assetBundleName, download);
 	
