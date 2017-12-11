@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 namespace AssetBundles
 {
@@ -85,10 +86,7 @@ namespace AssetBundles
 			LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle (m_AssetBundleName, out m_DownloadingError);
 			if (bundle != null)
 			{
-				if (m_IsAdditive)
-					m_Request = Application.LoadLevelAdditiveAsync (m_LevelName);
-				else
-					m_Request = Application.LoadLevelAsync (m_LevelName);
+        SceneManager.LoadSceneAsync(m_LevelName, m_IsAdditive ? LoadSceneMode.Additive : LoadSceneMode.Single);
 				return false;
 			}
 			else
@@ -153,8 +151,15 @@ namespace AssetBundles
 			m_AssetName = assetName;
 			m_Type = type;
 		}
-		
-		public override T GetAsset<T>()
+
+    public static AssetBundleLoadAssetOperationFull Create<TAsset>(
+      string bundleName, 
+      string assetName)
+    {
+      return new AssetBundleLoadAssetOperationFull(bundleName, assetName, typeof(TAsset));
+    }
+
+    public override T GetAsset<T>()
 		{
 			if (m_Request != null && m_Request.isDone)
 				return m_Request.asset as T;
