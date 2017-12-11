@@ -76,9 +76,10 @@ namespace AssetBundles
 		}
     #endregion
 
-    public void Init()
+    public static void Init()
     {
-      StartCoroutine(InitRoutine());
+			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
+      instance.StartCoroutine(instance.InitRoutine());
     }
 
     IEnumerator InitRoutine()
@@ -142,7 +143,7 @@ namespace AssetBundles
 
       yield return loadAsset;
 
-      onLoad(loadAsset.GetAsset<TAsset>());
+      onLoad?.Invoke(loadAsset.GetAsset<TAsset>());
     }
 
     static AssetBundleLoadAssetOperation LoadAssetAsync<TAsset>(
@@ -157,6 +158,7 @@ namespace AssetBundles
       {
         string[] assetPaths = AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(
           assetBundleName, assetName);
+
 
         if (assetPaths.Length == 0)
         {
@@ -297,21 +299,19 @@ namespace AssetBundles
 	
 		static public AssetBundleLoadManifestOperation Initialize ()
 		{
-			return Initialize(Utility.GetPlatformName());
+			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
+      return instance.Initialize(Utility.GetPlatformName());
 		}
 			
 	
 		// Load AssetBundleManifest.
-		static public AssetBundleLoadManifestOperation Initialize (
+		public AssetBundleLoadManifestOperation Initialize (
       string manifestAssetBundleName)
 		{
-      Debug.Assert(instance == null);
-
 	#if UNITY_EDITOR
 			Log (LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
 	#endif
 	
-			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
 			DontDestroyOnLoad(instance.gameObject);
 		
 	#if UNITY_EDITOR	
@@ -418,12 +418,12 @@ namespace AssetBundles
 	
 			WWW download = null;
 			string url = m_BaseDownloadingURL + assetBundleName;
-		
-			// For manifest assetbundle, always download it as we don't have hash for it.
-			if (isLoadingAssetBundleManifest)
 				download = new WWW(url);
-			else
-				download = WWW.LoadFromCacheOrDownload(url, m_AssetBundleManifest.GetAssetBundleHash(assetBundleName), 0); 
+		
+			//// For manifest assetbundle, always download it as we don't have hash for it.
+			//if (isLoadingAssetBundleManifest)
+			//else
+			//	download = WWW.LoadFromCacheOrDownload(url, m_AssetBundleManifest.GetAssetBundleHash(assetBundleName), 0); 
 	
 			m_DownloadingWWWs.Add(assetBundleName, download);
 	

@@ -4,10 +4,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System;
-using System.Net;
-using System.Threading;
-using UnityEditor.Utils;
 
 namespace AssetBundles
 {

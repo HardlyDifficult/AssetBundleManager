@@ -6,7 +6,7 @@ namespace AssetBundles
   {
     static AssetBundleManagerAPI()
     {
-      AssetBundleManager.instance.Init();
+      AssetBundleManager.Init();
     }
     
     void IAssetBundleManagerAPI.Init() { }
