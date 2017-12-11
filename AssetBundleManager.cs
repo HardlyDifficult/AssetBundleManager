@@ -76,6 +76,17 @@ namespace AssetBundles
 		}
     #endregion
 
+    public void Init()
+    {
+      StartCoroutine(InitRoutine());
+    }
+
+    IEnumerator InitRoutine()
+    {
+      SetSourceAssetBundleURL("http://192.168.0.101:7888/");
+      yield return Initialize();
+    }
+
     #region Public API
     /// <summary>
     /// Load asset from the given assetBundle.

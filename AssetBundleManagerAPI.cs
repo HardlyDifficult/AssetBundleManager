@@ -6,8 +6,7 @@ namespace AssetBundles
   {
     static AssetBundleManagerAPI()
     {
-      AssetBundleManager.SetSourceAssetBundleURL("http://192.168.0.101:7888/");
-      AssetBundleManager.Initialize();
+      AssetBundleManager.instance.Init();
     }
 
     void IAssetBundleManagerAPI.LoadAssetAsync<TAsset>(
