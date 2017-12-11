@@ -4,6 +4,7 @@ using UnityEditor;
 #endif
 using System.Collections;
 using System.Collections.Generic;
+using System;
 
 /*
  	In this demo, we demonstrate:
@@ -21,67 +22,173 @@ using System.Collections.Generic;
 
 namespace AssetBundles
 {	
-	// Loaded assetBundle contains the references count which can be used to unload dependent assetBundles automatically.
-	public class LoadedAssetBundle
-	{
-		public AssetBundle m_AssetBundle;
-		public int m_ReferencedCount;
-		
-		public LoadedAssetBundle(AssetBundle assetBundle)
-		{
-			m_AssetBundle = assetBundle;
-			m_ReferencedCount = 1;
-		}
-	}
-	
 	// Class takes care of loading assetBundle and its dependencies automatically, loading variants automatically.
 	public class AssetBundleManager : MonoBehaviour
 	{
-		public enum LogMode { All, JustErrors };
-		public enum LogType { Info, Warning, Error };
-	
-		static LogMode m_LogMode = LogMode.All;
+    #region Constants
+#if UNITY_EDITOR
+		const string kSimulateAssetBundles = "SimulateAssetBundles";
+#endif
+    #endregion
+
+    #region Data	
+    public static AssetBundleManager instance;
+    static LogMode m_LogMode = LogMode.All;
 		static string m_BaseDownloadingURL = "";
 		static string[] m_ActiveVariants =  {  };
 		static AssetBundleManifest m_AssetBundleManifest = null;
-	#if UNITY_EDITOR	
-		static int m_SimulateAssetBundleInEditor = -1;
-		const string kSimulateAssetBundles = "SimulateAssetBundles";
-	#endif
-	
 		static Dictionary<string, LoadedAssetBundle> m_LoadedAssetBundles = new Dictionary<string, LoadedAssetBundle> ();
 		static Dictionary<string, WWW> m_DownloadingWWWs = new Dictionary<string, WWW> ();
 		static Dictionary<string, string> m_DownloadingErrors = new Dictionary<string, string> ();
 		static List<AssetBundleLoadOperation> m_InProgressOperations = new List<AssetBundleLoadOperation> ();
 		static Dictionary<string, string[]> m_Dependencies = new Dictionary<string, string[]> ();
-	
-		public static LogMode logMode
+
+	#if UNITY_EDITOR	
+		static int m_SimulateAssetBundleInEditor = -1;
+#endif
+    #endregion
+
+    #region Properties
+    internal static LogMode logMode
 		{
 			get { return m_LogMode; }
 			set { m_LogMode = value; }
 		}
-	
+
 		// The base downloading url which is used to generate the full downloading url with the assetBundle names.
-		public static string BaseDownloadingURL
+		internal static string BaseDownloadingURL
 		{
 			get { return m_BaseDownloadingURL; }
 			set { m_BaseDownloadingURL = value; }
 		}
 	
 		// Variants which is used to define the active variants.
-		public static string[] ActiveVariants
+		internal static string[] ActiveVariants
 		{
 			get { return m_ActiveVariants; }
 			set { m_ActiveVariants = value; }
 		}
 	
 		// AssetBundleManifest object which can be used to load the dependecies and check suitable assetBundle variants.
-		public static AssetBundleManifest AssetBundleManifestObject
+		internal static AssetBundleManifest AssetBundleManifestObject
 		{
 			set {m_AssetBundleManifest = value; }
 		}
-	
-		private static void Log(LogType logType, string text)
+    #endregion
+
+    public static void Init()
+    {
+			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
+      instance.StartCoroutine(instance.InitRoutine());
+    }
+
+    IEnumerator InitRoutine()
+    {
+      SetSourceAssetBundleURL("http://192.168.0.101:7888/");
+      yield return Initialize();
+    }
+
+    #region Public API
+    /// <summary>
+    /// Load asset from the given assetBundle.
+    /// </summary>
+    public void LoadAssetAsync<TAsset>(
+      string assetBundleName,
+      string assetName,
+      Action<TAsset> onLoad)
+      where TAsset : UnityEngine.Object
+    {
+      StartCoroutine(LoadAssetAsyncRoutine(
+        assetBundleName, assetName, onLoad));
+    }
+
+    /// <summary>
+    /// Load level from the given assetBundle.
+    /// </summary>
+    public static AssetBundleLoadOperation LoadLevelAsync(
+      string assetBundleName, 
+      string levelName, 
+      bool isAdditive)
+    {
+      Log(LogType.Info, "Loading " + levelName + " from " + assetBundleName + " bundle");
+
+      AssetBundleLoadOperation operation = null;
+#if UNITY_EDITOR
+      if (SimulateAssetBundleInEditor)
+      {
+        operation = new AssetBundleLoadLevelSimulationOperation(assetBundleName, levelName, isAdditive);
+      }
+      else
+#endif
+      {
+        //assetBundleName = RemapVariantName(assetBundleName);
+        LoadAssetBundle(assetBundleName);
+        operation = new AssetBundleLoadLevelOperation(assetBundleName, levelName, isAdditive);
+
+        m_InProgressOperations.Add(operation);
+      }
+
+      return operation;
+    }
+    #endregion
+
+    IEnumerator LoadAssetAsyncRoutine<TAsset>(
+      string assetBundleName,
+      string assetName,
+      Action<TAsset> onLoad)
+      where TAsset : UnityEngine.Object
+    {
+      AssetBundleLoadAssetOperation loadAsset = LoadAssetAsync<TAsset>(
+        assetBundleName, assetName);
+
+      yield return loadAsset;
+
+      onLoad(loadAsset.GetAsset<TAsset>());
+    }
+
+    static AssetBundleLoadAssetOperation LoadAssetAsync<TAsset>(
+      string assetBundleName,
+      string assetName)
+    {
+      Log(LogType.Info, "Loading " + assetName + " from " + assetBundleName + " bundle");
+
+      AssetBundleLoadAssetOperation operation = null;
+#if UNITY_EDITOR
+      if (SimulateAssetBundleInEditor)
+      {
+        string[] assetPaths = AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(
+          assetBundleName, assetName);
+
+        if (assetPaths.Length == 0)
+        {
+          Debug.LogError("There is no asset with name \"" + assetName + "\" in " + assetBundleName);
+          return null;
+        }
+
+        // @TODO: Now we only get the main object from the first asset. Should consider type also.
+        UnityEngine.Object target = AssetDatabase.LoadMainAssetAtPath(assetPaths[0]);
+        operation = new AssetBundleLoadAssetOperationSimulation(target);
+      }
+      else
+#endif
+      {
+        //assetBundleName = RemapVariantName(assetBundleName);
+        LoadAssetBundle(assetBundleName);
+        operation = AssetBundleLoadAssetOperationFull.Create<TAsset>(assetBundleName, assetName);
+
+        m_InProgressOperations.Add(operation);
+      }
+
+      return operation;
+    }
+
+
+
+
+
+
+
+    private static void Log(LogType logType, string text)
 		{
 			if (logType == LogType.Error)
 				Debug.LogError("[AssetBundleManager] " + text);
@@ -191,19 +298,22 @@ namespace AssetBundles
 	
 		static public AssetBundleLoadManifestOperation Initialize ()
 		{
-			return Initialize(Utility.GetPlatformName());
+			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
+      return instance.Initialize(Utility.GetPlatformName());
 		}
 			
 	
 		// Load AssetBundleManifest.
-		static public AssetBundleLoadManifestOperation Initialize (string manifestAssetBundleName)
+		public AssetBundleLoadManifestOperation Initialize (
+      string manifestAssetBundleName)
 		{
+      Debug.Assert(instance == null);
+
 	#if UNITY_EDITOR
 			Log (LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
 	#endif
 	
-			var go = new GameObject("AssetBundleManager", typeof(AssetBundleManager));
-			DontDestroyOnLoad(go);
+			DontDestroyOnLoad(instance.gameObject);
 		
 	#if UNITY_EDITOR	
 			// If we're in Editor simulation mode, we don't need the manifest assetBundle.
@@ -391,8 +501,9 @@ namespace AssetBundles
 				Log(LogType.Info, assetBundleName + " has been unloaded successfully");
 			}
 		}
-	
-		void Update()
+
+    #region Events
+    protected void Update()
 		{
 			// Collect all the finished WWWs.
 			var keysToRemove = new List<string>();
@@ -444,62 +555,6 @@ namespace AssetBundles
 					i++;
 			}
 		}
-	
-		// Load asset from the given assetBundle.
-		static public AssetBundleLoadAssetOperation LoadAssetAsync (string assetBundleName, string assetName, System.Type type)
-		{
-			Log(LogType.Info, "Loading " + assetName + " from " + assetBundleName + " bundle");
-	
-			AssetBundleLoadAssetOperation operation = null;
-	#if UNITY_EDITOR
-			if (SimulateAssetBundleInEditor)
-			{
-				string[] assetPaths = AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(assetBundleName, assetName);
-				if (assetPaths.Length == 0)
-				{
-					Debug.LogError("There is no asset with name \"" + assetName + "\" in " + assetBundleName);
-					return null;
-				}
-	
-				// @TODO: Now we only get the main object from the first asset. Should consider type also.
-				Object target = AssetDatabase.LoadMainAssetAtPath(assetPaths[0]);
-				operation = new AssetBundleLoadAssetOperationSimulation (target);
-			}
-			else
-	#endif
-			{
-				assetBundleName = RemapVariantName (assetBundleName);
-				LoadAssetBundle (assetBundleName);
-				operation = new AssetBundleLoadAssetOperationFull (assetBundleName, assetName, type);
-	
-				m_InProgressOperations.Add (operation);
-			}
-	
-			return operation;
-		}
-	
-		// Load level from the given assetBundle.
-		static public AssetBundleLoadOperation LoadLevelAsync (string assetBundleName, string levelName, bool isAdditive)
-		{
-			Log(LogType.Info, "Loading " + levelName + " from " + assetBundleName + " bundle");
-	
-			AssetBundleLoadOperation operation = null;
-	#if UNITY_EDITOR
-			if (SimulateAssetBundleInEditor)
-			{
-				operation = new AssetBundleLoadLevelSimulationOperation(assetBundleName, levelName, isAdditive);
-			}
-			else
-	#endif
-			{
-				assetBundleName = RemapVariantName(assetBundleName);
-				LoadAssetBundle (assetBundleName);
-				operation = new AssetBundleLoadLevelOperation (assetBundleName, levelName, isAdditive);
-	
-				m_InProgressOperations.Add (operation);
-			}
-	
-			return operation;
-		}
-	} // End of AssetBundleManager.
+    #endregion
+	} 
 }
