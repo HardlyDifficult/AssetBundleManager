@@ -76,9 +76,10 @@ namespace AssetBundles
 		}
     #endregion
 
-    public void Init()
+    public static void Init()
     {
-      StartCoroutine(InitRoutine());
+			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
+      instance.StartCoroutine(instance.InitRoutine());
     }
 
     IEnumerator InitRoutine()
@@ -297,12 +298,13 @@ namespace AssetBundles
 	
 		static public AssetBundleLoadManifestOperation Initialize ()
 		{
-			return Initialize(Utility.GetPlatformName());
+			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
+      return instance.Initialize(Utility.GetPlatformName());
 		}
 			
 	
 		// Load AssetBundleManifest.
-		static public AssetBundleLoadManifestOperation Initialize (
+		public AssetBundleLoadManifestOperation Initialize (
       string manifestAssetBundleName)
 		{
       Debug.Assert(instance == null);
@@ -311,7 +313,6 @@ namespace AssetBundles
 			Log (LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
 	#endif
 	
-			instance = new GameObject("AssetBundleManager", typeof(AssetBundleManager)).GetComponent<AssetBundleManager>();
 			DontDestroyOnLoad(instance.gameObject);
 		
 	#if UNITY_EDITOR	
