@@ -143,7 +143,7 @@ namespace AssetBundles
 
       yield return loadAsset;
 
-      onLoad(loadAsset.GetAsset<TAsset>());
+      onLoad?.Invoke(loadAsset.GetAsset<TAsset>());
     }
 
     static AssetBundleLoadAssetOperation LoadAssetAsync<TAsset>(
@@ -158,6 +158,7 @@ namespace AssetBundles
       {
         string[] assetPaths = AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(
           assetBundleName, assetName);
+
 
         if (assetPaths.Length == 0)
         {
@@ -307,8 +308,6 @@ namespace AssetBundles
 		public AssetBundleLoadManifestOperation Initialize (
       string manifestAssetBundleName)
 		{
-      Debug.Assert(instance == null);
-
 	#if UNITY_EDITOR
 			Log (LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
 	#endif
