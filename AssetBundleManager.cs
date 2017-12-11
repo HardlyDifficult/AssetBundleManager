@@ -109,7 +109,7 @@ namespace AssetBundles
       else
 #endif
       {
-        assetBundleName = RemapVariantName(assetBundleName);
+        //assetBundleName = RemapVariantName(assetBundleName);
         LoadAssetBundle(assetBundleName);
         operation = new AssetBundleLoadLevelOperation(assetBundleName, levelName, isAdditive);
 
@@ -160,7 +160,7 @@ namespace AssetBundles
       else
 #endif
       {
-        assetBundleName = RemapVariantName(assetBundleName);
+        //assetBundleName = RemapVariantName(assetBundleName);
         LoadAssetBundle(assetBundleName);
         operation = AssetBundleLoadAssetOperationFull.Create<TAsset>(assetBundleName, assetName);
 
