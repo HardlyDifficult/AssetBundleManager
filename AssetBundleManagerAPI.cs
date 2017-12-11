@@ -8,6 +8,9 @@ namespace AssetBundles
     {
       AssetBundleManager.instance.Init();
     }
+    
+    void IAssetBundleManagerAPI.Init() { }
+
 
     void IAssetBundleManagerAPI.LoadAssetAsync<TAsset>(
       string assetBundleName,
